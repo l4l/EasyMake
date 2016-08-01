@@ -33,7 +33,34 @@ def check_def(k, default=UNDEFINED, msg=UNDEFINED):
             return default
     return t
 
-def compile_dir(cc, path, ext, flags, is_link):
+def read_dir(p):
+    dirs = []
+    files = []
+    for i in p.iterdir():
+        if i.is_dir():
+            dirs.append(i)
+        else:
+            files.append(i)
+
+    return dirs, files
+
+def compiled_ext(is_link=False):
+    if is_link:
+        return LINKED_EXT
+    else:
+        return COMPILED_EXT
+
+def dest_file(path, comp_ext, is_shared=False, is_link=False):
+    if is_link:
+        p = Path(DIST_DIR)
+        if is_shared:
+            return p / p.parent.stem
+        else:
+            return p / path.stem
+    else:
+        return BUILD_DIR / path.relative_to('src/').with_suffix(comp_ext)
+
+def compile_dir(cc, path, ext, flags):
     files = ''
     if type(ext) is list:
         for e in ext:
@@ -43,33 +70,60 @@ def compile_dir(cc, path, ext, flags, is_link):
     else:
         die("Wrong file format")
 
-    subdirs = []
-    for i in path.iterdir():
-        if i.is_dir():
-            subdirs.append(i)
-        elif not re.search(re.escape(ext) + '$', str(i)) is None:
-            name = str(i)
-            comp_ext = LINKED_EXT if is_link else COMPILED_EXT
-            dest = Path(DIST_DIR) / i.stem if is_link else BUILD_DIR / i.relative_to('src/').with_suffix(comp_ext)
-            comp_param = '' if is_link else '-c'
+    subdirs, files = read_dir(path)
+    for f in files:
+        name = str(f)
+        if not re.search(re.escape(ext) + '$', name) is None:
+            comp_ext = compiled_ext()
+            dest = dest_file(f, comp_ext)
+            comp_param = '-c'
 
-            os.system('%s ' '%s '       '%s -o%s'   '%s' % \
-                      (cc,  comp_param, name, dest, flags))
+            comp_arg = '%s ' '%s '       '%s -o%s'   '%s' % \
+                       (cc,  comp_param, name, dest, flags)
 
+            print("[Info]:", comp_arg)
+
+            os.system(comp_arg)
     return subdirs
 
-def compile(cc, ext, flags, is_link):
+def compile(cc, ext, flags):
     p = Path(SRC_DIR)
-    comp = lambda pth: compile_dir(cc, pth, ext, flags, is_link)
+    comp = lambda pth: compile_dir(cc, pth, ext, flags)
     sub = comp(p)
-    if is_link:
-        flags = flags + shared() # Further links should make shared libs
     for s in sub:
         try:
             os.mkdir(str(BUILD_DIR / s.relative_to('src/')))
         except FileExistsError:
             pass
         sub += comp(s)
+
+def link_target(cc, path, ext, flags, is_shared):
+    subdirs, files = read_dir(path)
+
+    name = " ".join(list(map(lambda x: str(x), files)))
+    comp_ext = compiled_ext(is_link=True)
+    dest = dest_file(path, comp_ext, is_shared=is_shared, is_link=True)
+
+    comp_arg = '%s ' '%s -o%s'   '%s' % \
+               (cc,  name, dest, flags)
+
+    print("[Info]:", comp_arg)
+
+    os.system(comp_arg)
+
+    return subdirs
+
+def link(cc, ext, flags):
+    p = Path(BUILD_DIR)
+    dirs = link_target(cc, p, ext, flags, False)
+    for f in dirs:
+        dirs.append(link_target(cc, f, ext, flags, True))
+    # for i in p.iterdir():
+    #     if i.is_dir():
+    #         link_target(cc, i, ext, flags)
+    #         dirs += i
+    #     else:
+    #         files += i
 
 def create_req_dirs(l):
     for i in l:
@@ -95,8 +149,8 @@ def main():
 
     create_req_dirs([BUILD_DIR, DIST_DIR])
 
-    compile(cc, ext, cflags, is_link=False)
-    compile(cc, ext, ldflags, is_link=True)
+    compile(cc, ext, cflags)
+    link(cc, ext, ldflags)
 
 if __name__ == '__main__':
     main()
