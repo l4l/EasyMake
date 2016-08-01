@@ -14,13 +14,11 @@ LINKED_EXT = '.so'
 
 UNDEFINED = '[undefined]'
 
+PROJ = UNDEFINED
+
 def die(msg):
     print("[Err]:", msg)
     exit(1)
-
-def shared():
-    # FIXME
-    return '-shared'
 
 def check_def(k, default=UNDEFINED, msg=UNDEFINED):
     t = os.getenv(k)
@@ -44,22 +42,6 @@ def read_dir(p):
 
     return dirs, files
 
-def compiled_ext(is_link=False):
-    if is_link:
-        return LINKED_EXT
-    else:
-        return COMPILED_EXT
-
-def dest_file(path, comp_ext, is_shared=False, is_link=False):
-    if is_link:
-        p = Path(DIST_DIR)
-        if is_shared:
-            return p / p.parent.stem
-        else:
-            return p / path.stem
-    else:
-        return BUILD_DIR / path.relative_to('src/').with_suffix(comp_ext)
-
 def compile_dir(cc, path, ext, flags):
     files = ''
     if type(ext) is list:
@@ -74,8 +56,8 @@ def compile_dir(cc, path, ext, flags):
     for f in files:
         name = str(f)
         if not re.search(re.escape(ext) + '$', name) is None:
-            comp_ext = compiled_ext()
-            dest = dest_file(f, comp_ext)
+            comp_ext = COMPILED_EXT
+            dest = BUILD_DIR / f.relative_to('src/').with_suffix(comp_ext)
             comp_param = '-c'
 
             comp_arg = '%s ' '%s '       '%s -o%s'   '%s' % \
@@ -97,14 +79,24 @@ def compile(cc, ext, flags):
             pass
         sub += comp(s)
 
+def linked_file(path, comp_ext, is_shared=False):
+    p = Path(DIST_DIR)
+    if is_shared:
+        return (p / ('lib' + path.stem)).with_suffix(comp_ext)
+    else:
+        return p / PROJ
+
 def link_target(cc, path, ext, flags, is_shared):
     subdirs, files = read_dir(path)
 
     name = " ".join(list(map(lambda x: str(x), files)))
-    comp_ext = compiled_ext(is_link=True)
-    dest = dest_file(path, comp_ext, is_shared=is_shared, is_link=True)
+    comp_ext = LINKED_EXT
+    dest = linked_file(path, comp_ext, is_shared=is_shared)
 
-    comp_arg = '%s ' '%s -o%s'   '%s' % \
+    if is_shared:
+        flags += '-shared'
+
+    comp_arg = '%s ' '%s -o%s '   '%s' % \
                (cc,  name, dest, flags)
 
     print("[Info]:", comp_arg)
@@ -117,13 +109,8 @@ def link(cc, ext, flags):
     p = Path(BUILD_DIR)
     dirs = link_target(cc, p, ext, flags, False)
     for f in dirs:
-        dirs.append(link_target(cc, f, ext, flags, True))
-    # for i in p.iterdir():
-    #     if i.is_dir():
-    #         link_target(cc, i, ext, flags)
-    #         dirs += i
-    #     else:
-    #         files += i
+        if f != []:
+            dirs.append(link_target(cc, f, ext, flags, True))
 
 def create_req_dirs(l):
     for i in l:
@@ -142,10 +129,13 @@ def main():
     global BUILD_DIR
     global DIST_DIR
     global SRC_DIR
+    global PROJ
 
     BUILD_DIR = check_def('EM_BUILD', default=BUILD_DIR)
     DIST_DIR = check_def('EM_DIST', default=DIST_DIR)
     SRC_DIR = check_def('EM_SRC', default=SRC_DIR)
+
+    PROJ = Path(os.getenv('PWD')).name
 
     create_req_dirs([BUILD_DIR, DIST_DIR])
 
