@@ -1,3 +1,4 @@
+#!/bin/python
 # EasyMake - LGPL - kitsu
 
 import os
