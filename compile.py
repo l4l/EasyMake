@@ -18,6 +18,10 @@ def die(msg):
     print("[Err]:", msg)
     exit(1)
 
+def shared():
+    # FIXME
+    return '-shared'
+
 def check_def(k, default=UNDEFINED, msg=UNDEFINED):
     t = os.getenv(k)
     if t is None:
@@ -58,7 +62,13 @@ def compile(cc, ext, flags, is_link):
     p = Path(SRC_DIR)
     comp = lambda pth: compile_dir(cc, pth, ext, flags, is_link)
     sub = comp(p)
+    if is_link:
+        flags = flags + shared() # Further links should make shared libs
     for s in sub:
+        try:
+            os.mkdir(str(BUILD_DIR / s.relative_to('src/')))
+        except FileExistsError:
+            pass
         sub += comp(s)
 
 def create_req_dirs(l):
