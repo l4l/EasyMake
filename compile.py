@@ -45,10 +45,10 @@ def compile_dir(cc, path, ext, flags, is_link):
             subdirs.append(i)
         elif not re.search(re.escape(ext) + '$', str(i)) is None:
             name = str(i)
-            (dest, comp_param, comp_ext) = \
-                    (DIST_DIR, '', LINKED_EXT) \
-                if is_link else \
-                    (BUILD_DIR / i, '-C', COMPILED_EXT)
+            dest = DIST_DIR if is_link else BUILD_DIR / i
+            comp_param = '-C' if is_link else ''
+            comp_ext = LINKED_EXT if is_link else COMPILED_EXT
+
             os.system('%s ' '%s '       '%s -o%s'   '%s '     '%s' % \
                       (cc,  comp_param, name, dest, comp_ext, flags))
 
