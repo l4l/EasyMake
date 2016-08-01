@@ -12,14 +12,18 @@ SOURCE_EXT = '.c'
 COMPILED_EXT = '.o'
 LINKED_EXT = '.so'
 
+UNDEFINED = '[undefined]'
+
 def die(msg):
     print("[Err]:", msg)
     exit(1)
 
-def check_def(k, default='[undefined]', msg=(("env var \'%s\' is undefined") % (k))):
+def check_def(k, default=UNDEFINED, msg=UNDEFINED):
     t = os.getenv(k)
     if t is None:
-        if default is '[undefined]':
+        if default is UNDEFINED:
+            if msg is UNDEFINED:
+                msg = "env var \'%s\' is undefined" % (k)
             die(msg)
         else:
             return default
@@ -38,8 +42,8 @@ def compile_dir(cc, path, ext, flags, is_link):
     subdirs = []
     for i in path.iterdir():
         if i.is_dir():
-            subdirs += i
-        elif not re.search(re.escape(ext) + '$', i) is None:
+            subdirs.append(i)
+        elif not re.search(re.escape(ext) + '$', str(i)) is None:
             name = str(i)
             (dest, comp_param, comp_ext) = \
                     (DIST_DIR, '', LINKED_EXT) \
@@ -71,6 +75,10 @@ def main():
     cflags = check_def('EM_CFLAGS', default='')
     ldflags = check_def('EM_LDFLAGS', default='')
 
+    global BUILD_DIR
+    global DIST_DIR
+    global SRC_DIR
+
     BUILD_DIR = check_def('EM_BUILD', default=BUILD_DIR)
     DIST_DIR = check_def('EM_DIST', default=DIST_DIR)
     SRC_DIR = check_def('EM_SRC', default=SRC_DIR)
@@ -78,7 +86,7 @@ def main():
     create_req_dirs([BUILD_DIR, DIST_DIR])
 
     compile(cc, ext, cflags, is_link=False)
-    compile(cc, ext, ldlags, is_link=True)
+    compile(cc, ext, ldflags, is_link=True)
 
 if __name__ == '__main__':
     main()
