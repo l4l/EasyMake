@@ -44,3 +44,16 @@ build
     ├── server.o
     └── sys-dep.o
 ```
+
+## Env variables
+
+Default tools, flags, project dir, etc can be changed via environment variables. Most of them has prefix EM\_ to the common name. Here is the list:
+
++ EM\_CC - compiler
++ EM\_EXT - extension (e.g '\*.c')
++ EM\_CFLAGS - flags for compilation
++ EM\_LDFLAGS - flags for linking
++ EM\_BUILD - building directory
++ EM\_DIST - binary directory
++ EM\_SRC - source file directory (e.g src/)
++ EM\_PROJ - project root
